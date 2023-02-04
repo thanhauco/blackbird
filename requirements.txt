@@ -1,0 +1,45 @@
+# Blackbird Search Engine Dependencies
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Git Integration
+gitpython>=3.1.40
+
+# Data Processing
+pydantic>=2.5.0
+python-multipart>=0.0.6
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Hashing and Similarity
+mmh3>=4.0.1  # MurmurHash for MinHash
+xxhash>=3.4.1  # Fast hashing
+
+# Database
+aiosqlite>=0.19.0
+
+# ML/AI Dependencies
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+scikit-learn>=1.3.0
+openai>=1.0.0
+torch>=2.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-benchmark>=4.0.0
+pytest-cov>=4.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+structlog>=23.2.0
+rich>=13.7.0
+
+# Type checking (dev)
+mypy>=1.7.0
+
+# Code parsing for symbol extraction
+tree-sitter>=0.21.0
