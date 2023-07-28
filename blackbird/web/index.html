@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackbird - Code Search Engine</title>
+    <meta name="description" content="Fast, scalable code search powered by ngram indices. Search across millions of repositories.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    <span class="logo-text">Blackbird</span>
+                </div>
+                <nav class="nav">
+                    <a href="#" class="nav-link active" data-view="search">Search</a>
+                    <a href="#" class="nav-link" data-view="index">Index</a>
+                    <a href="#" class="nav-link" data-view="stats">Stats</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Search View -->
+            <section id="search-view" class="view active">
+                <div class="search-hero">
+                    <h1 class="hero-title">Search Code at Scale</h1>
+                    <p class="hero-subtitle">Powered by ngram indices for lightning-fast substring matching</p>
+                    
+                    <div class="search-container">
+                        <div class="search-box">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <input 
+                                type="text" 
+                                id="search-input" 
+                                class="search-input" 
+                                placeholder="Search code... (e.g., onClick, async function, import React)"
+                                autocomplete="off"
+                            >
+                            <button id="search-btn" class="search-btn">
+                                <span>Search</span>
+                                <kbd>⌘K</kbd>
+                            </button>
+                        </div>
+                        
+                        <div class="search-filters">
+                            <div class="filter-group">
+                                <label>Language</label>
+                                <select id="filter-language" class="filter-select">
+                                    <option value="">All Languages</option>
+                                    <option value="python">Python</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="typescript">TypeScript</option>
+                                    <option value="java">Java</option>
+                                    <option value="go">Go</option>
+                                    <option value="rust">Rust</option>
+                                    <option value="cpp">C++</option>
+                                    <option value="csharp">C#</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Results</label>
+                                <select id="filter-limit" class="filter-select">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="results-container" class="results-container hidden">
+                    <div class="results-header">
+                        <span id="results-count" class="results-count"></span>
+                        <span id="results-time" class="results-time"></span>
+                    </div>
+                    <div id="results-list" class="results-list"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <h3>Start searching</h3>
+                    <p>Enter a query above to search across indexed repositories</p>
+                    <div class="example-queries">
+                        <span class="example-label">Try:</span>
+                        <button class="example-query" data-query="async function">async function</button>
+                        <button class="example-query" data-query="onClick">onClick</button>
+                        <button class="example-query" data-query="import React">import React</button>
+                        <button class="example-query" data-query="def __init__">def __init__</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Index View -->
+            <section id="index-view" class="view">
+                <div class="view-header">
+                    <h2>Index Repository</h2>
+                    <p>Add a local repository to the search index</p>
+                </div>
+                
+                <div class="index-form">
+                    <div class="form-group">
+                        <label for="repo-path">Repository Path</label>
+                        <input 
+                            type="text" 
+                            id="repo-path" 
+                            class="form-input" 
+                            placeholder="C:\path\to\repository or /home/user/repo"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="repo-id">Repository ID (optional)</label>
+                        <input 
+                            type="text" 
+                            id="repo-id" 
+                            class="form-input" 
+                            placeholder="my-project"
+                        >
+                    </div>
+                    <button id="index-btn" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        Index Repository
+                    </button>
+                </div>
+
+                <div id="index-result" class="index-result hidden"></div>
+            </section>
+
+            <!-- Stats View -->
+            <section id="stats-view" class="view">
+                <div class="view-header">
+                    <h2>System Statistics</h2>
+                    <p>Index and shard status</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📄</div>
+                        <div class="stat-value" id="stat-documents">-</div>
+                        <div class="stat-label">Documents</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔤</div>
+                        <div class="stat-value" id="stat-ngrams">-</div>
+                        <div class="stat-label">Ngrams</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-value" id="stat-shards">-</div>
+                        <div class="stat-label">Shards</div>
+                    </div>
+                </div>
+
+                <div class="shards-table-container">
+                    <h3>Shard Details</h3>
+                    <table class="shards-table">
+                        <thead>
+                            <tr>
+                                <th>Shard ID</th>
+                                <th>Documents</th>
+                                <th>Ngrams</th>
+                                <th>Segments</th>
+                                <th>Pending</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shards-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="admin-actions">
+                    <button id="compact-btn" class="btn btn-secondary">
+                        Run Compaction
+                    </button>
+                    <button id="save-btn" class="btn btn-secondary">
+                        Save Index
+                    </button>
+                    <button id="refresh-stats-btn" class="btn btn-secondary">
+                        Refresh
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span>Blackbird Search Engine v1.0.0</span>
+                <span class="footer-sep">•</span>
+                <span>Inspired by GitHub's code search</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Searching...</span>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
