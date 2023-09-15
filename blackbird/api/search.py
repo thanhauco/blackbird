@@ -12,6 +12,8 @@ import structlog
 from ..core.index import SearchResult
 from ..core.ngram import NgramTokenizer
 from ..shard.manager import ShardManager
+from ..ml.embeddings import SemanticSearchEngine
+from ..ml.hybrid import HybridSearchEngine, SearchMode
 from ..config import get_config
 
 logger = structlog.get_logger()
@@ -91,6 +93,22 @@ class SearchService:
         self.snippet_length = snippet_length
         self.tokenizer = NgramTokenizer()
         
+        # Initialize semantic search
+        self.semantic_engine = SemanticSearchEngine()
+        
+        # Initialize hybrid search
+        # Wrap shard manager to look like an index
+        class ShardManagerAdapter:
+            def __init__(self, manager):
+                self.manager = manager
+            def search(self, query, limit, min_score):
+                return self.manager.search(query, limit, min_score)
+        
+        self.hybrid_engine = HybridSearchEngine(
+            ngram_index=ShardManagerAdapter(shard_manager),
+            semantic_engine=self.semantic_engine
+        )
+        
         logger.info("Search service initialized")
     
     def search(
@@ -116,11 +134,16 @@ class SearchService:
         """
         start_time = datetime.utcnow()
         
-        # Execute search across shards
-        raw_results = self.shard_manager.search(
+        # Execute hybrid search
+        # Determine mode based on config or query analysis
+        mode = SearchMode.HYBRID
+        
+        raw_results = self.hybrid_engine.search(
             query=query,
-            limit=limit * 2,  # Get extra for filtering
-            min_score=min_score
+            mode=mode,
+            limit=limit * 2,
+            min_score=min_score,
+            language=language
         )
         
         # Filter results

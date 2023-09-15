@@ -1,4 +1,4 @@
-# 🐦‍⬛ Blackbird Search Engine
+# 🐦‍⬛ Blackbird Search Engine for GitHub
 
 A high-performance code search engine inspired by [GitHub's Blackbird](https://github.blog/engineering/architecture-optimization/how-we-built-github-code-search/) and [Sourcegraph](https://sourcegraph.com). Combines ngram-based indexing with ML-powered semantic search and code intelligence.
 
