@@ -12,6 +12,8 @@ from pathlib import Path
 import re
 import structlog
 
+from .scope import ScopeAnalyzer, Scope, ScopedSymbol
+
 logger = structlog.get_logger()
 
 # Try to import tree-sitter
@@ -389,6 +391,7 @@ class CodeIntelligenceService:
     
     def __init__(self):
         self.analyzers: Dict[str, CodeAnalyzer] = {}
+        self.scope_analyzers: Dict[str, ScopeAnalyzer] = {}
         self.global_index = SymbolIndex()
     
     def get_analyzer(self, language: str) -> CodeAnalyzer:
@@ -399,8 +402,17 @@ class CodeIntelligenceService:
     
     def index_file(self, file_path: str, content: str, language: str):
         """Index a file for code intelligence"""
+        # Symbol analysis
         analyzer = self.get_analyzer(language)
         symbols = analyzer.analyze_file(file_path, content)
+        
+        # Scope analysis
+        if language == "python":  # Currently only Python supported for scope
+            if language not in self.scope_analyzers:
+                self.scope_analyzers[language] = ScopeAnalyzer(language)
+            
+            scope_analyzer = self.scope_analyzers[language]
+            scope_analyzer.analyze(content, file_path)
         
         # Add to global index
         for symbol in symbols:
@@ -460,3 +472,13 @@ class CodeIntelligenceService:
     def workspace_symbol_search(self, query: str) -> List[Symbol]:
         """Search symbols across the workspace"""
         return self.global_index.search_symbols(query)
+    
+    def get_scope_variables(self, file_path: str, line: int) -> List[ScopedSymbol]:
+        """Get all variables visible in the current scope"""
+        # Determine language
+        ext = Path(file_path).suffix.lstrip(".")
+        language = "python" if ext == "py" else None
+        
+        if language and language in self.scope_analyzers:
+            return self.scope_analyzers[language].get_visible_symbols(line)
+        return []
