@@ -11,6 +11,7 @@ Provides AI-powered code assistance including:
 from typing import List, Dict, Optional, Any, Generator
 from dataclasses import dataclass, field
 from enum import Enum
+from .prompts import PromptBuilder, PromptContext
 import json
 import re
 import structlog
@@ -61,96 +62,7 @@ class AssistantResponse:
     confidence: float = 1.0
 
 
-class PromptTemplates:
-    """Prompt templates for different tasks"""
-    
-    SYSTEM_PROMPT = """You are an expert code assistant integrated into the Blackbird code search engine. 
-You help developers understand, search, and improve their code.
 
-Your capabilities:
-1. Explain code in clear, concise language
-2. Answer questions about code functionality
-3. Suggest improvements and best practices
-4. Help find relevant code using natural language
-5. Generate code based on descriptions
-
-When explaining code:
-- Start with a high-level summary
-- Explain key components and their interactions
-- Highlight potential issues or improvements
-
-When generating code:
-- Follow the style of the surrounding code
-- Include helpful comments
-- Consider edge cases and error handling
-"""
-    
-    CODE_EXPLAIN = """Explain the following {language} code:
-
-```{language}
-{code}
-```
-
-Provide:
-1. A brief summary of what this code does
-2. Explanation of key components
-3. Any potential issues or improvements
-"""
-    
-    CODE_SEARCH = """Convert this natural language query into a code search query:
-
-User Query: "{query}"
-
-Context: The user is searching a codebase that contains {languages}.
-
-Return a JSON object with:
-- "search_terms": List of specific code patterns to search for
-- "filters": Optional filters like language, file type
-- "explanation": Brief explanation of the search strategy
-"""
-    
-    CODE_GENERATE = """Generate code based on this description:
-
-Description: {description}
-Language: {language}
-Context:
-```{language}
-{context}
-```
-
-Requirements:
-- Follow the existing code style
-- Include error handling
-- Add helpful comments
-"""
-    
-    CODE_REVIEW = """Review the following code and provide suggestions:
-
-```{language}
-{code}
-```
-
-Focus on:
-1. Code quality and readability
-2. Potential bugs or issues
-3. Performance considerations
-4. Security concerns
-5. Best practices for {language}
-"""
-    
-    REFACTOR = """Suggest refactoring for this code:
-
-```{language}
-{code}
-```
-
-Consider:
-1. Simplifying complex logic
-2. Extracting reusable functions
-3. Improving naming
-4. Reducing duplication
-5. Following {language} best practices
-"""
 
 
 class AIAssistant:
@@ -178,6 +90,7 @@ class AIAssistant:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.client = None
+        self.prompt_builder = PromptBuilder()
         
         if OPENAI_AVAILABLE and api_key:
             self.client = openai.OpenAI(api_key=api_key)
@@ -235,13 +148,15 @@ class AIAssistant:
         """
         Explain what a piece of code does.
         """
-        prompt = PromptTemplates.CODE_EXPLAIN.format(
-            language=language,
-            code=code
+        prompt = self.prompt_builder.build(
+            "explain",
+            code,
+            PromptContext(language=language)
         )
         
         messages = [
-            {"role": "system", "content": PromptTemplates.SYSTEM_PROMPT},
+            # Note: PromptBuilder templates include instructions, so system prompt can be simpler
+            {"role": "system", "content": "You are an expert code assistant."},
             {"role": "user", "content": prompt}
         ]
         
@@ -258,13 +173,30 @@ class AIAssistant:
         """
         languages = languages or ["Python", "JavaScript", "TypeScript"]
         
-        prompt = PromptTemplates.CODE_SEARCH.format(
-            query=query,
-            languages=", ".join(languages)
-        )
+        # Search doesn't map directly to a prompt builder template efficiently in this simple refactor
+        # But we can use _default_template or add a custom one.
+        # For now, let's reconstruct the prompt manually or add a new template to PromptBuilder?
+        # Since I can't modify prompts.py easily right now without switching context,
+        # I'll effectively inline the logic using the builder's structure if possible, 
+        # or just format a strong system message.
+        
+        # Actually, let's just stick to a manual prompt here since PromptBuilder doesn't have a search template
+        # visible in the previous view_file (it had explain, generate, review, refactor, debug).
+        
+        prompt = f"""Convert this natural language query into a code search query:
+
+User Query: "{query}"
+
+Context: The user is searching a codebase that contains {', '.join(languages)}.
+
+Return a JSON object with:
+- "search_terms": List of specific code patterns to search for
+- "filters": Optional filters like language, file type
+- "explanation": Brief explanation of the search strategy
+"""
         
         messages = [
-            {"role": "system", "content": PromptTemplates.SYSTEM_PROMPT},
+            {"role": "system", "content": "You are an expert code assistant."},
             {"role": "user", "content": prompt}
         ]
         
@@ -295,14 +227,14 @@ class AIAssistant:
         """
         Generate code from natural language description.
         """
-        prompt = PromptTemplates.CODE_GENERATE.format(
-            description=description,
-            language=language,
-            context=context
+        prompt = self.prompt_builder.build(
+            "generate",
+            description,
+            PromptContext(language=language, code_snippet=context)
         )
         
         messages = [
-            {"role": "system", "content": PromptTemplates.SYSTEM_PROMPT},
+            {"role": "system", "content": "You are an expert code assistant."},
             {"role": "user", "content": prompt}
         ]
         
@@ -322,13 +254,14 @@ class AIAssistant:
         """
         Review code and provide suggestions.
         """
-        prompt = PromptTemplates.CODE_REVIEW.format(
-            language=language,
-            code=code
+        prompt = self.prompt_builder.build(
+            "review",
+            code,
+            PromptContext(language=language)
         )
         
         messages = [
-            {"role": "system", "content": PromptTemplates.SYSTEM_PROMPT},
+            {"role": "system", "content": "You are an expert code assistant."},
             {"role": "user", "content": prompt}
         ]
         
@@ -348,13 +281,14 @@ class AIAssistant:
         """
         Suggest code refactoring.
         """
-        prompt = PromptTemplates.REFACTOR.format(
-            language=language,
-            code=code
+        prompt = self.prompt_builder.build(
+            "refactor",
+            code,
+            PromptContext(language=language)
         )
         
         messages = [
-            {"role": "system", "content": PromptTemplates.SYSTEM_PROMPT},
+            {"role": "system", "content": "You are an expert code assistant."},
             {"role": "user", "content": prompt}
         ]
         
@@ -377,7 +311,7 @@ class AIAssistant:
         """
         if session_id not in self.conversations:
             self.conversations[session_id] = [
-                Message(AssistantRole.SYSTEM, PromptTemplates.SYSTEM_PROMPT)
+                Message(AssistantRole.SYSTEM, "You are an expert code assistant.")
             ]
         
         # Add context if provided
