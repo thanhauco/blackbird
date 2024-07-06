@@ -1,22 +1,49 @@
 # 🐦‍⬛ Blackbird Search Engine
 
-A high-performance code search engine inspired by [GitHub's Blackbird](https://github.blog/engineering/architecture-optimization/how-we-built-github-code-search/). Uses ngram-based indexing for lightning-fast substring matching across codebases.
+A high-performance code search engine inspired by [GitHub's Blackbird](https://github.blog/engineering/architecture-optimization/how-we-built-github-code-search/) and [Sourcegraph](https://sourcegraph.com). Combines ngram-based indexing with ML-powered semantic search and code intelligence.
 
 ![Search Page](docs/search_page.png)
 
 ## ✨ Features
 
-- **Ngram-Based Search** - Trigram indexing enables fast substring matching (search for `onClick` finds all occurrences)
-- **Symbol Extraction** - Prioritizes matches in function/class names for better relevance
-- **8-Shard Distribution** - Parallel indexing and search for scalability
-- **Delta Crawling** - Efficient updates using MinHash similarity between repositories
-- **Compaction Engine** - Tiered merging of index segments for optimal performance
+### Core Search
+- **Ngram-Based Search** - Trigram indexing for lightning-fast substring matching
+- **Semantic Search** - Neural embeddings with FAISS for meaning-based search
+- **Hybrid Search** - Combines ngram + semantic with RRF fusion for best results
+- **Structural Search** - AST pattern matching (Sourcegraph-style): `def :[name](:[args]):`
+
+### Code Intelligence
+- **Go-to-Definition** - Jump to symbol definitions across files
+- **Find References** - Locate all usages of any symbol
+- **Hover Information** - Rich tooltips with symbol details
+- **Scope Analysis** - Context-aware symbol resolution
+
+### AI-Powered
+- **Natural Language Search** - Search code using plain English
+- **Code Explanation** - AI explains what code does
+- **Code Generation** - Generate code from descriptions
+- **Code Review** - AI-powered review suggestions
+
+### Analysis & Monitoring
+- **Code Quality Scores** - Maintainability, complexity, security grades
+- **Security Scanner** - Detects hardcoded secrets, SQL injection, eval() usage
+- **Code Monitors** - Watch for patterns and trigger alerts (Sourcegraph-style)
+- **Dependency Graphs** - Visualize import relationships
+
+### Collaboration
+- **Code Notebooks** - Interactive exploration with markdown, queries, and code cells
+- **Learning to Rank** - ML-based result ranking that improves with usage
+- **Personalized Search** - Results adapt to individual preferences
+
+### Infrastructure
+- **8-Shard Distribution** - Parallel indexing and search
+- **Delta Crawling** - Efficient updates using MinHash similarity
+- **Caching Layer** - LRU caches for embeddings and search results
 - **Modern Web UI** - Dark theme with glassmorphism design
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Python 3.11+
 - Git
 
@@ -24,13 +51,13 @@ A high-performance code search engine inspired by [GitHub's Blackbird](https://g
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/blackbird.git
+git clone https://github.com/thanhauco/blackbird.git
 cd blackbird
 
 # Create virtual environment
 python -m venv venv
 
-# Activate virtual environment
+# Activate
 # Windows:
 .\venv\Scripts\activate
 # Linux/Mac:
@@ -39,78 +66,107 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Install package in editable mode
+# Install package
 pip install -e .
 ```
 
 ### Running the Server
 
 ```bash
-# Start the server on port 8080
-.\venv\Scripts\uvicorn blackbird.api.main:app --host 0.0.0.0 --port 8080
+# Start the server
+uvicorn blackbird.api.main:app --host 0.0.0.0 --port 8080
 
-# Or with auto-reload for development
-.\venv\Scripts\uvicorn blackbird.api.main:app --host 0.0.0.0 --port 8080 --reload
+# With auto-reload for development
+uvicorn blackbird.api.main:app --port 8080 --reload
 ```
 
-Then open **http://localhost:8080** in your browser.
+Open **http://localhost:8080** in your browser.
 
 ![Stats Dashboard](docs/stats_page.png)
 
 ## 📖 Usage Guide
 
-### Using the Web Interface
+### Web Interface
+1. **Search**: Enter query (supports `lang:python`, `file:*.js` filters)
+2. **Index Repos**: Click "Index" tab to add repositories
+3. **View Stats**: Click "Stats" tab for index statistics
 
-1. **Search Code**: Enter a query in the search box (e.g., `async function`, `onClick`, `import React`)
-2. **Filter by Language**: Use the dropdown to filter results by programming language
-3. **Index Repositories**: Click "Index" tab to add repositories to the search index
-4. **View Statistics**: Click "Stats" tab to see index statistics and shard details
+### REST API
 
-### Using the REST API
-
-#### Search Code
 ```bash
 # Basic search
 curl "http://localhost:8080/search?q=onClick"
 
-# With filters
-curl "http://localhost:8080/search?q=function&language=javascript&limit=20"
-```
-
-#### Index a Repository
-```bash
-# Index a local repository
-curl -X POST http://localhost:8080/index/repo \
+# Semantic search
+curl -X POST http://localhost:8080/v2/search/semantic \
   -H "Content-Type: application/json" \
-  -d '{"path": "C:\\path\\to\\your\\repo"}'
+  -d '{"query": "function that handles user login", "mode": "hybrid"}'
 
-# Index with custom ID
-curl -X POST http://localhost:8080/index/repo \
+# Natural language search
+curl -X POST http://localhost:8080/v2/search/natural \
   -H "Content-Type: application/json" \
-  -d '{"path": "/home/user/myproject", "repo_id": "my-project"}'
-```
+  -d '{"query": "how to validate email addresses"}'
 
-#### Check System Stats
-```bash
-curl http://localhost:8080/stats
-```
-
-#### Health Check
-```bash
-curl http://localhost:8080/health
-```
-
-### Using the CLI
-
-```bash
 # Index a repository
-python -m blackbird index /path/to/repo
+curl -X POST http://localhost:8080/index/repo \
+  -d '{"path": "/path/to/repo"}'
 
-# Search from command line
-python -m blackbird search "onClick" --limit 10
+# Analyze code quality
+curl -X POST http://localhost:8080/v2/analysis/quality \
+  -d '{"file_path": "app.py", "content": "...", "language": "python"}'
+```
 
-# View statistics
-python -m blackbird stats
+### Structural Search (Sourcegraph-style)
+
+```python
+from blackbird.search import StructuralSearchEngine
+
+engine = StructuralSearchEngine()
+
+# Find all function definitions
+results = engine.search("def :[name](:[args]):", code, "test.py", "python")
+
+# Find try/except blocks
+results = engine.search("try:\n...\nexcept :[exc]:", code)
+
+# With captures
+for match in results:
+    print(f"Function: {match.captures.get('name')}")
+```
+
+### Code Monitors
+
+```python
+from blackbird.monitors import CodeMonitor, MonitorRule, AlertSeverity
+
+monitor = CodeMonitor()
+
+# Add custom rule
+monitor.add_rule(MonitorRule(
+    id="custom-001",
+    name="Console.log detector",
+    pattern=r"console\.log\(",
+    severity=AlertSeverity.WARNING
+))
+
+# Scan code
+alerts = monitor.scan("app.js", code, language="javascript")
+```
+
+### Code Notebooks
+
+```python
+from blackbird.notebooks import NotebookEngine, CellType
+
+engine = NotebookEngine()
+notebook = engine.create_notebook("API Investigation")
+
+engine.add_cell(notebook.id, CellType.MARKDOWN, "# API Analysis")
+engine.add_cell(notebook.id, CellType.QUERY, "lang:python def authenticate")
+engine.add_cell(notebook.id, CellType.CODE, "print('hello')", "python")
+
+# Export
+markdown = engine.export_markdown(notebook.id)
 ```
 
 ## 🏗️ Architecture
@@ -119,55 +175,44 @@ python -m blackbird stats
 graph TB
     subgraph Web["Web Layer"]
         UI["🌐 Web UI"]
-        API["⚡ FastAPI Server"]
+        API["⚡ FastAPI"]
+    end
+    
+    subgraph ML["ML Layer"]
+        EMB["🧠 Embeddings"]
+        HYB["🔀 Hybrid Search"]
+        RANK["📊 Learning to Rank"]
+    end
+    
+    subgraph Intel["Intelligence"]
+        CI["🔍 Code Intel"]
+        AI["🤖 AI Assistant"]
+        MON["🔔 Monitors"]
     end
     
     subgraph Core["Core Engine"]
         IDX["📇 Inverted Index"]
         NGR["🔤 Ngram Tokenizer"]
-        CMP["🗜️ Compaction Engine"]
+        VEC["📐 Vector Store"]
     end
     
-    subgraph Distributed["Distribution Layer"]
-        SM["📦 Shard Manager"]
-        KF["📨 Kafka Queue"]
-    end
-    
-    subgraph Crawlers["Data Ingestion"]
-        GC["🔍 Git Crawler"]
-        SE["🏷️ Symbol Extractor"]
-        MH["🔗 MinHash Similarity"]
+    subgraph Analysis["Analysis"]
+        QA["✅ Quality Analyzer"]
+        DEP["🔗 Dependency Graph"]
+        SEC["🛡️ Security Scanner"]
     end
     
     UI --> API
-    API --> SM
-    SM --> IDX
-    IDX --> NGR
-    SM --> CMP
-    GC --> KF
-    KF --> SM
-    GC --> SE
-    GC --> MH
-```
-
-### Data Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant API
-    participant ShardManager
-    participant Index
-    participant Tokenizer
-
-    User->>API: Search "onClick"
-    API->>ShardManager: Distribute query
-    ShardManager->>Tokenizer: Tokenize query
-    Tokenizer-->>ShardManager: ["onc", "ncl", "cli", "lic", "ick"]
-    ShardManager->>Index: Query all shards in parallel
-    Index-->>ShardManager: Matching documents
-    ShardManager->>API: Merged & ranked results
-    API-->>User: Search results
+    API --> HYB
+    HYB --> IDX
+    HYB --> VEC
+    VEC --> EMB
+    API --> CI
+    API --> AI
+    API --> MON
+    API --> QA
+    QA --> DEP
+    QA --> SEC
 ```
 
 ## 📁 Project Structure
@@ -175,98 +220,87 @@ sequenceDiagram
 ```
 blackbird/
 ├── blackbird/
-│   ├── api/                 # FastAPI routes and search service
-│   │   ├── main.py         # Application entry point
-│   │   ├── routes.py       # REST API endpoints
-│   │   └── search.py       # Search service with result enrichment
+│   ├── api/                 # FastAPI routes
+│   │   ├── routes.py       # Core REST endpoints
+│   │   └── ml_routes.py    # ML feature endpoints
 │   ├── core/               # Core search engine
 │   │   ├── ngram.py        # Trigram tokenizer
-│   │   ├── document.py     # Code document representation
-│   │   ├── index.py        # Inverted index with posting lists
-│   │   └── compaction.py   # Segment compaction engine
+│   │   ├── index.py        # Inverted index
+│   │   └── compaction.py   # Segment compaction
+│   ├── ml/                 # Machine learning
+│   │   ├── embeddings.py   # Code embeddings + FAISS
+│   │   ├── hybrid.py       # Hybrid search with RRF
+│   │   ├── ranking.py      # Learning to rank
+│   │   └── query.py        # Query expansion
+│   ├── intelligence/       # Code intelligence
+│   │   ├── code_intel.py   # Go-to-def, find-refs
+│   │   └── scope.py        # Scope analysis
+│   ├── ai/                 # AI assistant
+│   │   ├── assistant.py    # LLM integration
+│   │   └── prompts.py      # Prompt engineering
+│   ├── analysis/           # Code analysis
+│   │   ├── quality.py      # Quality metrics
+│   │   ├── metrics.py      # Halstead, maintainability
+│   │   └── dependencies.py # Import graph
+│   ├── search/             # Advanced search
+│   │   └── structural.py   # Structural pattern matching
+│   ├── monitors/           # Code monitors
+│   │   └── code_monitor.py # Pattern alerts
+│   ├── notebooks/          # Code notebooks
+│   │   └── notebook.py     # Interactive exploration
+│   ├── cache/              # Caching
+│   │   ├── cache.py        # LRU cache
+│   │   └── prefetch.py     # Cache warming
 │   ├── crawler/            # Repository crawlers
-│   │   ├── git_crawler.py  # Git repository crawler
-│   │   ├── symbol_extractor.py  # Function/class extraction
-│   │   └── similarity.py   # MinHash similarity estimation
-│   ├── kafka/              # In-memory event queue
-│   │   ├── queue.py        # Partitioned message queue
-│   │   ├── producer.py     # Event publisher
-│   │   └── consumer.py     # Shard consumers
+│   ├── kafka/              # Event queue
 │   ├── shard/              # Distributed sharding
-│   │   ├── manager.py      # Shard coordination
-│   │   └── partition.py    # Consistent hashing
-│   ├── tests/              # Unit tests
-│   └── web/                # Frontend UI
-│       ├── index.html
-│       ├── styles.css
-│       └── app.js
-├── docs/                   # Documentation and screenshots
+│   └── tests/              # Unit tests
+├── docs/
 ├── requirements.txt
-├── setup.py
 └── README.md
 ```
 
-## 🔧 Configuration
+## 🎯 API Reference
 
-Edit `blackbird/config.py` to customize:
+### Core Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/stats` | GET | Index statistics |
+| `/search` | GET | Ngram search |
+| `/index/repo` | POST | Index a repository |
 
-```python
-# Ngram settings
-NGRAM_SIZE = 3              # Trigrams by default
-
-# Sharding
-NUM_SHARDS = 8              # Number of index shards
-
-# Crawling
-MAX_FILE_SIZE_MB = 1        # Skip files larger than this
-SUPPORTED_EXTENSIONS = ['.py', '.js', '.ts', '.java', ...]
-EXCLUDED_DIRS = ['node_modules', '.git', 'vendor', ...]
-
-# API
-API_HOST = "0.0.0.0"
-API_PORT = 8000
-```
+### ML Endpoints (v2)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v2/search/semantic` | POST | Semantic/hybrid search |
+| `/v2/search/natural` | POST | Natural language search |
+| `/v2/intel/definition` | POST | Go to definition |
+| `/v2/intel/references` | POST | Find references |
+| `/v2/ai/explain` | POST | Explain code |
+| `/v2/ai/generate` | POST | Generate code |
+| `/v2/analysis/quality` | POST | Code quality analysis |
+| `/v2/analysis/security` | POST | Security scan |
 
 ## 🧪 Running Tests
 
 ```bash
 # Run all tests
-.\venv\Scripts\python -m pytest blackbird/tests/ -v
+pytest blackbird/tests/ -v
 
-# Run with coverage
-.\venv\Scripts\python -m pytest blackbird/tests/ --cov=blackbird
+# With coverage
+pytest blackbird/tests/ --cov=blackbird
+
+# Run specific test file
+pytest blackbird/tests/test_ml.py -v
 ```
-
-## 📊 How Ngram Search Works
-
-1. **Indexing**: Code is tokenized into overlapping trigrams
-   - `"limits"` → `["lim", "imi", "mit", "its"]`
-   
-2. **Searching**: Query is also tokenized, then we find documents containing ALL ngrams
-   - Query `"mit"` matches any document containing that trigram
-   
-3. **Ranking**: Results scored by:
-   - Number of matching ngrams
-   - Symbol matches (function/class names) get higher scores
-   - Position of matches in the file
-
-## 🎯 API Reference
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/stats` | GET | Index statistics |
-| `/search` | GET | Search code (`?q=query&limit=20&language=python`) |
-| `/search` | POST | Search with JSON body |
-| `/index/repo` | POST | Index a repository |
-| `/admin/compact` | POST | Trigger compaction |
-| `/admin/save` | POST | Save index to disk |
 
 ## 📚 References
 
 - [GitHub's Blackbird Architecture](https://github.blog/engineering/architecture-optimization/how-we-built-github-code-search/)
-- [Ngram Indexing](https://nlp.stanford.edu/IR-book/html/htmledition/k-gram-indexes-for-wildcard-queries-1.html)
-- [MinHash for Similarity](https://en.wikipedia.org/wiki/MinHash)
+- [Sourcegraph Code Intelligence](https://sourcegraph.com/docs/code-intelligence)
+- [Sentence Transformers](https://www.sbert.net/)
+- [FAISS Vector Search](https://github.com/facebookresearch/faiss)
 
 ## 📄 License
 
